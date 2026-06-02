@@ -306,7 +306,8 @@
   .services { background: var(--cream); }
   .services-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    grid-template-columns: repeat(2, 1fr);
+    grid-auto-rows: 1fr;
     gap: 1.5rem;
     margin-top: 3rem;
   }
@@ -317,7 +318,10 @@
     padding: 2rem;
     background: var(--white);
     transition: all 0.3s;
+    display: flex;
+    flex-direction: column;
   }
+  .service-card p:not(.service-price) { flex: 1; }
   .service-card:hover {
     transform: translateY(-4px);
     box-shadow: 0 16px 48px rgba(7,17,31,0.1);
