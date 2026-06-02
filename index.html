@@ -854,27 +854,27 @@
           <div class="form-row">
             <div class="form-group">
               <label>First Name</label>
-              <input type="text" placeholder="Maria" required>
+              <input type="text" name="first_name" placeholder="Maria" required>
             </div>
             <div class="form-group">
               <label>Last Name</label>
-              <input type="text" placeholder="Garcia" required>
+              <input type="text" name="last_name" placeholder="Garcia" required>
             </div>
           </div>
           <div class="form-row">
             <div class="form-group">
               <label>Email Address</label>
-              <input type="email" placeholder="you@example.com" required>
+              <input type="email" name="email" placeholder="you@example.com" required>
             </div>
             <div class="form-group">
               <label>Phone (optional)</label>
-              <input type="tel" placeholder="(555) 000-0000">
+              <input type="tel" name="phone" placeholder="(555) 000-0000">
             </div>
           </div>
           <div class="form-row">
             <div class="form-group">
               <label>Service Needed</label>
-              <select>
+              <select name="service">
                 <option value="">Select a service…</option>
                 <option>Business Website (1–3 pages)</option>
                 <option>E-Commerce Store</option>
@@ -885,7 +885,7 @@
             </div>
             <div class="form-group">
               <label>Budget Range</label>
-              <select>
+              <select name="budget">
                 <option value="">Select a range…</option>
                 <option>Under $500</option>
                 <option>$500 – $1,000</option>
@@ -897,9 +897,9 @@
           </div>
           <div class="form-group">
             <label>Tell me about your project</label>
-            <textarea placeholder="A little about your business and what you're looking for — the more detail, the better my quote will be."></textarea>
+            <textarea name="project_details" placeholder="A little about your business and what you're looking for — the more detail, the better my quote will be."></textarea>
           </div>
-          <button type="submit" class="form-submit">Send Request →</button>
+          <button type="submit" class="form-submit" data-label="Send Request →">Send Request →</button>
           <div class="form-success" id="bookingSuccess">✅ Request sent! I'll be in touch within 24 hours with availability and a custom quote.</div>
         </form>
       </div>
@@ -997,17 +997,17 @@
         <form id="contactForm" onsubmit="submitForm(event,'contactSuccess')">
           <div class="form-group">
             <label>Name</label>
-            <input type="text" placeholder="Your name" required>
+            <input type="text" name="name" placeholder="Your name" required>
           </div>
           <div class="form-group">
             <label>Email</label>
-            <input type="email" placeholder="you@example.com" required>
+            <input type="email" name="email" placeholder="you@example.com" required>
           </div>
           <div class="form-group">
             <label>Message</label>
-            <textarea placeholder="What's on your mind?" style="min-height:130px;" required></textarea>
+            <textarea name="message" placeholder="What's on your mind?" style="min-height:130px;" required></textarea>
           </div>
-          <button type="submit" class="quote-submit">Send Message →</button>
+          <button type="submit" class="quote-submit" data-label="Send Message →">Send Message →</button>
           <div class="form-success" id="contactSuccess" style="background:rgba(104,211,145,0.1);border-color:rgba(104,211,145,0.4);color:#9ae6b4;">✅ Message sent! I'll get back to you shortly.</div>
         </form>
       </div>
@@ -1086,21 +1086,50 @@
   }
 
   // --- Submit Review ---
-  function submitReview(e) {
+  async function submitReview(e) {
     e.preventDefault();
     const name = document.getElementById('reviewName').value.trim();
     const biz = document.getElementById('reviewBiz').value.trim();
     const text = document.getElementById('reviewText').value.trim();
     if (!name || !text || selectedRating === 0) {
-      alert('Please fill in your name, review, and select a star rating.');
+      alert('Please fill in your name, a star rating, and your review.');
       return;
     }
-    reviews.unshift({ name, biz: biz || 'Verified Client', stars: selectedRating, text });
-    renderReviews();
-    document.getElementById('reviewForm').reset();
-    setRating(0);
-    document.getElementById('reviewSuccess').style.display = 'block';
-    setTimeout(() => document.getElementById('reviewSuccess').style.display = 'none', 4000);
+
+    const btn = document.querySelector('#reviewForm button[type="submit"]');
+    btn.disabled = true;
+    btn.textContent = 'Submitting…';
+
+    // Send to Web3Forms so JD gets the email
+    const data = new FormData();
+    data.append('access_key', '9c3acc48-426b-40d8-b6e3-b70f9aab4338');
+    data.append('subject', 'New JD Digital Review (' + selectedRating + '★)');
+    data.append('from_name', name);
+    data.append('name', name);
+    data.append('business', biz || 'Not provided');
+    data.append('rating', selectedRating + ' stars');
+    data.append('review', text);
+
+    try {
+      const res = await fetch('https://api.web3forms.com/submit', { method: 'POST', body: data });
+      const json = await res.json();
+      if (json.success) {
+        // Also show it live on the page for this session
+        reviews.unshift({ name, biz: biz || 'Verified Client', stars: selectedRating, text });
+        renderReviews();
+        document.getElementById('reviewForm').reset();
+        setRating(0);
+        document.getElementById('reviewSuccess').style.display = 'block';
+        setTimeout(() => document.getElementById('reviewSuccess').style.display = 'none', 5000);
+      } else {
+        alert('Something went wrong. Please try again.');
+      }
+    } catch(err) {
+      alert('Network error. Please try again.');
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Submit Review →';
   }
 
   // --- Hamburger Menu ---
@@ -1115,15 +1144,45 @@
     document.getElementById('hamburger').classList.remove('open');
   }
 
-  // --- Generic Form Submit ---
-  function submitForm(e, successId) {
+  // --- Web3Forms Submit ---
+  const FORM_SUBJECTS = {
+    bookingForm:  '📅 New Booking Request — JD Digital',
+    contactForm:  '✉️ New Contact Message — JD Digital',
+  };
+
+  async function submitForm(e, successId) {
     e.preventDefault();
-    e.target.querySelector('button[type="submit"]').disabled = true;
-    setTimeout(() => {
-      document.getElementById(successId).style.display = 'block';
-      e.target.reset();
-      e.target.querySelector('button[type="submit"]').disabled = false;
-    }, 600);
+    const form = e.target;
+    const btn = form.querySelector('button[type="submit"]');
+    const successEl = document.getElementById(successId);
+    const originalLabel = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Sending…';
+
+    const data = new FormData(form);
+    data.append('access_key', '9c3acc48-426b-40d8-b6e3-b70f9aab4338');
+    data.append('subject', FORM_SUBJECTS[form.id] || 'New JD Digital Submission');
+    data.append('from_name', 'JD Digital Website');
+
+    try {
+      const res = await fetch('https://api.web3forms.com/submit', {
+        method: 'POST',
+        body: data
+      });
+      const json = await res.json();
+      if (json.success) {
+        successEl.style.display = 'block';
+        form.reset();
+        setTimeout(() => successEl.style.display = 'none', 6000);
+      } else {
+        alert('Something went wrong. Please email juwlbusiness7@gmail.com directly.');
+      }
+    } catch (err) {
+      alert('Network error. Please email juwlbusiness7@gmail.com directly.');
+    }
+
+    btn.disabled = false;
+    btn.textContent = originalLabel;
   }
 </script>
 
